@@ -9,32 +9,10 @@ import (
 	"log"
 	"os"
 
-	// "github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
-
-func readTablesFromCSV(path string) ([]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var tables []string
-	scanner := csv.NewReader(file)
-	for {
-		record, err := scanner.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		tables = append(tables, record[0])
-	}
-	return tables, nil
-}
 
 func main() {
 	// Parse command-line flags
@@ -47,6 +25,7 @@ func main() {
 	newPassword := flag.String("new-password", "", "The password to use to connect to the new MySQL server")
 	newDBName := flag.String("new-dbname", "", "The name of the database to migrate to on the new MySQL server")
 	tablesFile := flag.String("tables", "", "The path to the CSV file containing the table names to migrate")
+	hexBlobColumn := flag.String("hex-blob", "", "The name of the hexadecimal BLOB column (if any)")
 	flag.Parse()
 
 	// Validate command-line flags
@@ -54,39 +33,41 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
+
 	// Read the table names from the CSV file
-	tables, err := readTablesFromCSV(*tablesFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Connect to the old MySQL database
-	oldDsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", *oldUser, *oldPassword, *oldHost, *oldDBName)
-	oldDB, err := sql.Open("mysql", oldDsn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer oldDB.Close()
-	// Connect to the new MySQL database
-	newDsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", *newUser, *newPassword, *newHost, *newDBName)
-	newDB, err := sql.Open("mysql", newDsn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer newDB.Close()
-	// Migrate the specified tables
-	for _, table := range tables {
-		query := fmt.Sprintf("CREATE TABLE %s LIKE %s.%s", table, *oldDBName, table)
-		if _, err := newDB.Exec(query); err != nil {
-			log.Fatal(err)
-		}
+	tables, err := readTablesFromCS
+	if *hexBlobColumn != "" {
+		query = fmt.Sprintf("INSERT INTO %s SELECT *, HEX(%s) FROM %s.%s", table, *hexBlobColumn, *oldDBName, table)
+	} else {
 		query = fmt.Sprintf("INSERT INTO %s SELECT * FROM %s.%s", table, *oldDBName, table)
-		if _, err := newDB.Exec(query); err != nil {
-			log.Fatal(err)
-		}
 	}
-	log.Println("Migration complete!")
+	if _, err := newDB.Exec(query); err != nil {
+		log.Fatal(err)
+	}
 }
 
+log.Println("Migration complete!")
+}
 
+// readTablesFromCSV reads the table names from a CSV file
+func readTablesFromCSV(path string) ([]string, error) {
+file, err := os.Open(path)
+if err != nil {
+	return nil, err
+}
+defer file.Close()
 
-
+var tables []string
+scanner := csv.NewReader(file)
+for {
+	record, err := scanner.Read()
+	if err == io.EOF {
+		break
+	}
+	if err != nil {
+		return nil, err
+	}
+	tables = append(tables, record[0])
+}
+return tables, nil
+}

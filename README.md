@@ -26,5 +26,5 @@ To use the tool, you will need to provide the following command-line flags:
  To install the required packages, you will need to have the Go toolchain
 installed on your system. Once you have done so, you can use the following
 commands to install the required packages:
- go get -u github.com/golang-migrate/migrate/v4
- go get -u github.com/go-sql-driver/mysql
+* go get -u github.com/golang-migrate/migrate/v4
+* go get -u github.com/go-sql-driver/mysql
